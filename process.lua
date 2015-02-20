@@ -17,23 +17,74 @@ local function wrap(tag, class, text)
 end
 
 local styles = [[
+div.title {
+   cursor: pointer;
+}
+
 div.content {
    display: none;
 }
 
-.red {
-   background: #f0f4ff;
+div.summary {
+   background: lightblue; 
+   width: 120px; 
+   border: solid 1px black
+}
+
+div.summary-line {
+   cursor: pointer;
+   padding: 4px;
+   border-bottom: solid 1px black;
+}
+
+div.summary span {
+   margin-top: 10px;
+   padding: 8px;
+}
+
+.normal {
+   background: lightblue;
+}
+
+.normal.selected {
+   background: #9AC0CD;
+}
+
+.abort {
+   background: #F64D54;
+}
+
+.abort.selected {
+   background: #E32E30;
+}
+
+pre.ljdump {
+   display: none;
+   float: right;
+   width: 1100px;
 }
 ]]
 
 local javascript = [[
 <script type="text/javascript" src="js/jquery.js"></script>
 <script type="text/javascript">
+   function toggle_trace(target, id) {
+      var node = $('#' + id);
+      var result = node.toggle();
+      var isHidden = node.is(":hidden");
+      if (isHidden) {
+         $(target).removeClass("selected");
+      } else {
+         $(target).addClass("selected");
+      }
+   }
+
    function init() {
       $('div.title').on('click', function() {
          $(this).next().toggle();
       });
    }
+
    window.addEventListener('load', init);
 </script>
 ]]
@@ -53,29 +104,38 @@ while true do
    print(line)
 end
 
-local function print_trace(buffer, style)
+local function print_trace(buffer, trace_id, style)
    local content = table.concat(buffer, "\n")
    if style == "abort" then
-      print((content):format("background: #ffaea0"))
+      print((content):format(trace_id, "background: #ffaea0;"))
    else
-      print((content):format("background:  #f0f4ff"))
+      print((content):format(trace_id, "background:  #f0f4ff;"))
    end
 end
 
+local traces_state = {}
+local trace_id
+
 local in_traces = false
-local buffer = {}
+local buffer, summary = {}, {}
 local style = "normal"
+local id = 0
 while true do
    line, pos = content:match("([^\n]+)\n()", pos)
    if not line then break end
    if line:match('</pre>') then
+      table.insert(summary, ("<div class='summary-line %s' onclick='toggle_trace(this, %d);'><span>TRACE %d</span></div>")
+         :format(style, id, trace_id))
       table.insert(buffer, line)
-      print_trace(buffer, style)
+      print_trace(buffer, id, style)
+      -- Reset
+      id = id + 1
       buffer = {}
       style = "normal"
    elseif line:match('<pre class="ljdump">') then
-      table.insert(buffer, '<pre style="%s" class="ljdump">')
+      table.insert(buffer, '<pre id="'..id..'" style="%s" class="ljdump">')
    elseif line:match("---- TRACE %d+ start") then
+      trace_id = line:match("---- TRACE (%d+)")
       table.insert(buffer, "<div class='title'>"..line.."</div>")
       table.insert(buffer, "<div class='content'>")
    elseif line:match("---- TRACE %d+ IR") then
@@ -98,4 +158,13 @@ while true do
       table.insert(buffer, line)
    end
 end
-print(table.concat(buffer, "\n"))
+
+print_trace(buffer, style)
+
+print("<div class='summary'>")
+for i, head in ipairs(summary) do
+   print(head)
+end
+print("</div>")
+
+print("</body></html>")
