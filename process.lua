@@ -63,7 +63,47 @@ pre.ljdump {
    float: right;
    width: 1050px;
 }
+
+div.searchbar {
+   position: fixed;
+   left: 10px;
+   top: 10px;
+   z-index: 100;
+   width: 95%;
+   margin-bottom: 10px;
+}
+
+div.searchbar input {
+   padding: 2px;
+}
+
+body {
+   margin-top: 40px;
+}
+
 ]]
+
+local lines = {}
+
+local function generate_lines_array(varname)
+   local buffer = {}
+   local current_trace_id = -1
+
+   table.insert(buffer, 'var '..varname..' = {')
+   for _, line in ipairs(lines) do
+      local trace_id, data = line:match("^(%d+)-(.+)$")
+      if current_trace_id == trace_id then
+         table.insert(buffer, "'"..data.."',")
+      else
+         if current_trace_id ~= -1 then table.insert(buffer, "},") end
+         table.insert(buffer, "'"..trace_id.."' = {")
+         current_trace_id = trace_id
+      end
+   end
+   table.insert(buffer, '};')
+   return table.concat(buffer, "\n")
+end
+
 
 local javascript = [[
 <script type="text/javascript" src="js/jquery.js"></script>
@@ -83,6 +123,9 @@ local javascript = [[
       $('div.title').on('click', function() {
          $(this).next().toggle();
       });
+
+      // Generate 'lines' array for search
+
       // Show all traces
       var text = "[All: " + $('.summary-line').length + "]";
       $('#traceState').contents().last().replaceWith(text);
@@ -137,6 +180,43 @@ local javascript = [[
       $('#summary-line-' + id).removeClass("selected");
    }
 
+   function doSearch() {
+      $('.summary-line').hide();
+      $('div.content').each(function(i, item) {
+         var haystack = $(item).text();
+         var needle = $('#txtSearch').val();
+         if (haystack.contains(needle)) {
+            var title = findTraceTitle($(item).prev());
+            showSummaryLine(summaryLineTitleFormat(title.text()));
+         }
+      });
+   }
+
+   function findTraceTitle(title) {
+      // Is in IR section
+      if (title.text().match(/^---- TRACE \d+ IR/)) {
+         return title.prev().prev();
+      }
+      // Is in MCODE section
+      if (title.text().match(/^---- TRACE \d+ mcode/)) {
+         return title.prev().prev().prev().prev();
+      }
+      return title;
+   }
+
+   function summaryLineTitleFormat(text) {
+      return text.replace("---- TRACE ", "#").replace(" start", " -");
+   }
+
+   function showSummaryLine(trace_name) {
+      $('div.summary').find('span').each(function(i, item) {
+         var str = $(item).text();
+         if (str == trace_name) {
+            $(item).parent().show();
+         }
+      });
+   }
+
    window.addEventListener('load', init);
 </script>
 ]]
@@ -172,6 +252,7 @@ local in_traces = false
 local buffer, summary = {}, {}
 local style = "normal"
 local id = 0
+local lines = {}
 while true do
    line, pos = content:match("([^\n]+)\n()", pos)
    if not line then break end
@@ -212,12 +293,20 @@ while true do
       style = "abort"
    else
       table.insert(buffer, line)
+      if not lines[id] then lines[id] = {} end
+      table.insert(lines[id], line)
    end
 end
 
 print_trace(buffer, style)
 
 print([=[
+<div class="searchbar">
+   <form action="">
+      <input id="txtSearch" style="width: 95%; background: #ff9" display: inline" type="text" placeholder="Search"/>
+      <input style="display: inline" type="button" value="OK" onclick="doSearch();" />
+   </form>
+</div>
 <div style="font-size: 10px; font-face: Courier; margin-bottom: 4px">
    <span><a id="traceState" href="#" onclick="switchTracesState(this);">[All]</a></span>
 </div>
