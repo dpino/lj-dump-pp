@@ -83,6 +83,45 @@ local javascript = [[
       $('div.title').on('click', function() {
          $(this).next().toggle();
       });
+      // Show all traces
+      var text = "[All: " + $('.summary-line').length + "]";
+      $('#traceState').contents().last().replaceWith(text);
+   }
+
+   var traceStates = {
+      all: 0,
+      aborted: 1,
+      completed: 2
+   };
+
+   var traceState = traceStates.all;
+
+   function switchTracesState(target) {
+      var num;
+      traceState = traceState + 1; 
+      traceState = traceState % (Object.keys(traceStates).length);
+      switch (traceState) {
+         case traceStates.all:
+            $('.summary-line').css("display", "block");
+            var text = "[All: " + $('.summary-line').length + "]";
+            $(target).contents().last().replaceWith(text);
+         break;
+         case traceStates.aborted:
+            $('.summary-line').css("display", "none");
+            $('.summary-line.abort').css("display", "block");
+            var text = "[Aborted: " + $('.summary-line.abort').length + "]";
+            $(target).contents().last().replaceWith(text);
+         break;
+         case traceStates.completed:
+            $('.summary-line').css("display", "none");
+            $('.summary-line.normal').css("display", "block");
+            var text = "[Completed: " + $('.summary-line.normal').length + "]";
+            $(target).contents().last().replaceWith(text);
+      }
+   }
+
+   function toggleCollapse(target) {
+      alert("toggleCollapse");
    }
 
    window.addEventListener('load', init);
@@ -135,7 +174,8 @@ while true do
    elseif line:match('<pre class="ljdump">') then
       table.insert(buffer, '<pre id="'..id..'" style="%s" class="ljdump">')
    elseif line:match("---- TRACE %d+ start %w+") then
-      trace_id, filename = line:match("---- TRACE (%d+) start ([a-zA-Z0-9.:]+)")
+      trace_id = line:match("---- TRACE (%d+)")
+      filename = line:match("([a-zA-Z0-9.:]+)$")
       table.insert(buffer, "<div class='title'>"..line.."</div>")
       table.insert(buffer, "<div class='content'>")
    elseif line:match("---- TRACE %d+ IR") then
@@ -161,7 +201,13 @@ end
 
 print_trace(buffer, style)
 
-print("<div class='summary'>")
+print([=[
+<div style="font-size: 10px; font-face: Courier; margin-bottom: 4px">
+   <span><a id="traceState" href="#" onclick="switchTracesState(this);">[All]</a></span>
+   <span><a href="#" onclick="toggleCollapse(this);">[Expanded]</a></span>
+</div>
+]=])
+print([[<div class="summary">]])
 for i, head in ipairs(summary) do
    print(head)
 end
