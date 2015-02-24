@@ -120,8 +120,21 @@ local javascript = [[
       }
    }
 
-   function toggleCollapse(target) {
-      alert("toggleCollapse");
+   function expand_trace(target) {
+      var container = $(target).parent().parent();
+      var text = $(target).text();
+      if (text == "[Expand]") {
+         $(target).text("[Collapse]");
+         $(container).find("div.content").show();
+      } else {
+         $(target).text("[Expand]");
+         $(container).find("div.content").hide();
+      }
+   }
+
+   function close_trace(id) {
+      $('#' + id).hide();
+      $('#summary-line-' + id).removeClass("selected");
    }
 
    window.addEventListener('load', init);
@@ -163,7 +176,7 @@ while true do
    line, pos = content:match("([^\n]+)\n()", pos)
    if not line then break end
    if line:match('</pre>') then
-      table.insert(summary, ("<div class='summary-line %s' onclick='toggle_trace(this, %d);'><span>#%d - %s</span></div>")
+      table.insert(summary, ("<div id='summary-line-"..id.."' class='summary-line %s' onclick='toggle_trace(this, %d);'><span>#%d - %s</span></div>")
          :format(style, id, trace_id, filename))
       table.insert(buffer, line)
       print_trace(buffer, id, style)
@@ -173,6 +186,9 @@ while true do
       style = "normal"
    elseif line:match('<pre class="ljdump">') then
       table.insert(buffer, '<pre id="'..id..'" style="%s" class="ljdump">')
+      table.insert(buffer, [[<span style='float: right; font-size: 10px; margin-top: -10px'>
+         <a href='#' onclick="expand_trace(this);">[Expand]</a> | <a href='#' onclick="close_trace(]]..id..[[);">[X]</a> </span>
+      ]])
    elseif line:match("---- TRACE %d+ start %w+") then
       trace_id = line:match("---- TRACE (%d+)")
       filename = line:match("([a-zA-Z0-9.:]+)$")
@@ -204,7 +220,6 @@ print_trace(buffer, style)
 print([=[
 <div style="font-size: 10px; font-face: Courier; margin-bottom: 4px">
    <span><a id="traceState" href="#" onclick="switchTracesState(this);">[All]</a></span>
-   <span><a href="#" onclick="toggleCollapse(this);">[Expanded]</a></span>
 </div>
 ]=])
 print([[<div class="summary">]])
