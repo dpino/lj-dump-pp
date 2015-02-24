@@ -27,7 +27,7 @@ div.content {
 
 div.summary {
    background: lightblue; 
-   width: 120px; 
+   width: 220px; 
    border: solid 1px black
 }
 
@@ -61,7 +61,7 @@ div.summary span {
 pre.ljdump {
    display: none;
    float: right;
-   width: 1100px;
+   width: 1050px;
 }
 ]]
 
@@ -114,7 +114,7 @@ local function print_trace(buffer, trace_id, style)
 end
 
 local traces_state = {}
-local trace_id
+local trace_id, filename
 
 local in_traces = false
 local buffer, summary = {}, {}
@@ -124,8 +124,8 @@ while true do
    line, pos = content:match("([^\n]+)\n()", pos)
    if not line then break end
    if line:match('</pre>') then
-      table.insert(summary, ("<div class='summary-line %s' onclick='toggle_trace(this, %d);'><span>TRACE %d</span></div>")
-         :format(style, id, trace_id))
+      table.insert(summary, ("<div class='summary-line %s' onclick='toggle_trace(this, %d);'><span>#%d - %s</span></div>")
+         :format(style, id, trace_id, filename))
       table.insert(buffer, line)
       print_trace(buffer, id, style)
       -- Reset
@@ -134,8 +134,8 @@ while true do
       style = "normal"
    elseif line:match('<pre class="ljdump">') then
       table.insert(buffer, '<pre id="'..id..'" style="%s" class="ljdump">')
-   elseif line:match("---- TRACE %d+ start") then
-      trace_id = line:match("---- TRACE (%d+)")
+   elseif line:match("---- TRACE %d+ start %w+") then
+      trace_id, filename = line:match("---- TRACE (%d+) start ([a-zA-Z0-9.:]+)")
       table.insert(buffer, "<div class='title'>"..line.."</div>")
       table.insert(buffer, "<div class='content'>")
    elseif line:match("---- TRACE %d+ IR") then
