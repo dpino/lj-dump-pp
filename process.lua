@@ -121,14 +121,100 @@ local javascript = [[
 
    var searchResults = [];
 
-   function toggleTrace(target, id) {
-      var node = $('#' + id);
-      var result = node.toggle();
-      var isHidden = node.is(":hidden");
-      if (isHidden) {
-         $(target).removeClass("selected");
+   function toggleAll(event) {
+      var text = $(event.target).text();
+      if (text.match(/Open/)) {
+         closeAll();
+         openAll();
+         $(event.target).text('[Close all]');
       } else {
-         $(target).addClass("selected");
+         closeAll();
+         $(event.target).text('[Open all]');
+      }
+   }
+
+   function closeAll() {
+      $('div.summary-line').each(function(i, summary_title) {
+         var id = $(summary_title).attr('id');
+         var matched = id.match(/(\d+)/)
+         if (matched) {
+            closeTrace($(summary_title), $('#' + matched[1]));
+         }
+      });
+   }
+
+   function closeTrace(summary_title, trace) {
+      summary_title.removeClass("selected");
+      trace.hide();
+   }
+
+   function openAll() {
+      getSummaryLinesByState().each(function(i, summary_title) {
+         var id = $(summary_title).attr('id');
+         var matched = id.match(/(\d+)/)
+         if (matched) {
+            openTrace($(summary_title), $('#' + matched[1]));
+         }
+      });
+   }
+
+   function openTrace(summary_title, trace) {
+      summary_title.addClass("selected");
+      trace.show();
+   }
+
+   function getSummaryLinesByState() {
+      switch (traceState) {
+         case traceStates.all:
+            return $('.summary-line');
+         break;
+         case traceStates.aborted:
+            return $('.summary-line.abort');
+         break;
+         case traceStates.completed:
+            return $('.summary-line.normal');
+         break;
+         case traceStates.search:
+            return getSearchResultsSummaryLines();
+         break;
+      }
+   }
+
+   function getSearchResultsSummaryLines() {
+      var result = [];
+      var set = new Set(searchResults);
+      $('div.summary').find('span').each(function(i, item) {
+         var trace_name = $(item).text();
+         if (set.has(trace_name)) {
+            result.push($(item).parent());
+         }
+      });
+      return result;
+   }
+
+   function toggleTrace(summary_title, trace_id) {
+      var trace = $('#' + trace_id);
+      trace.toggle();
+      expandTrace(trace);
+      toggleSummaryTitleSelection(summary_title, trace.is(":hidden"));
+   }
+
+   function toggleSummaryTitleSelection(summary_title, unselect) {
+      if (unselect) {
+         $(summary_title).removeClass("selected");
+      } else {
+         $(summary_title).addClass("selected");
+      }
+   }
+
+   function expandTrace(container) {
+      var target = container.find("a").first();
+      if (target.text() == "[Expand]") {
+         $(target).text("[Collapse]");
+         $(container).find("div.content").show();
+      } else {
+         $(target).text("[Expand]");
+         $(container).find("div.content").hide();
       }
    }
 
@@ -147,7 +233,12 @@ local javascript = [[
 
    function switchTracesState(event) {
       event.preventDefault();
-      switch (nextTraceState()) {
+      nextTraceState();
+      showTraces();
+   }
+
+   function showTraces()  {
+      switch (traceState) {
          case traceStates.all:
             showAll();
          break;
@@ -161,7 +252,8 @@ local javascript = [[
             if (searchResults.length != 0) {
                showSearchResults();
             } else {
-               switchTracesState(event);
+               showAll();
+               nextTraceState();
             }
       }
    }
@@ -194,29 +286,8 @@ local javascript = [[
       $('.summary-line').hide();
       var text = "[Search: " + searchResults.length + "]";
       $('#traceState').contents().last().replaceWith(text);
-      for (each of searchResults) {
-         showSummaryLine(each);
-      }
-   }
-
-   function showSummaryLine(trace_name) {
-      $('div.summary').find('span').each(function(i, item) {
-         var str = $(item).text();
-         if (str == trace_name) {
-            $(item).parent().show();
-         }
-      });
-   }
-
-   function expand_trace(target) {
-      var container = $(target).parent().parent();
-      var text = $(target).text();
-      if (text == "[Expand]") {
-         $(target).text("[Collapse]");
-         $(container).find("div.content").show();
-      } else {
-         $(target).text("[Expand]");
-         $(container).find("div.content").hide();
+      for (trace of getSearchResultsSummaryLines()) {
+         trace.show();
       }
    }
 
@@ -301,6 +372,7 @@ while true do
       print([[
          <div style="font-size: 10px; font-face: Courier; margin-bottom: 4px">
             <span><a id="traceState" href="#" onclick="switchTracesState(event);">[All]</a></span>
+            <span><a id="traceState" href="#" onclick="toggleAll(event);">[Open all]</a></span>
          </div>
       ]])
       break
@@ -341,7 +413,7 @@ while true do
       table.insert(buffer, '<pre id="'..id..'" style="%s" class="ljdump">')
       table.insert(buffer, [[
          <span style='float: right; font-size: 10px; margin-top: -10px'>
-            <a href='#' onclick="expand_trace(this);">[Expand]</a> | <a href='#' onclick="close_trace(]]..id..[[);">[X]</a>
+            <a href='#' onclick="expandTrace($(this).parent().parent());">[Expand]</a> | <a href='#' onclick="close_trace(]]..id..[[);">[X]</a>
          </span>
       ]])
    elseif line:match("---- TRACE %d+ start %w+") then
