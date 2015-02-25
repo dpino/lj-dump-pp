@@ -162,6 +162,7 @@ local javascript = [[
    function openTrace(summaryTitle, trace) {
       summaryTitle.addClass("selected");
       trace.show();
+      trace.find("div").show();
    }
 
    function getSummaryLinesByState() {
@@ -271,6 +272,7 @@ local javascript = [[
    }
 
    function resetState() {
+      traceState = traceStates.all;
       closeAll();
       showAll();
    }
@@ -305,31 +307,42 @@ local javascript = [[
 
    function doSearch(event) {
       if (event.keyCode != 13) return;
+
       searchResults = [];
       resetState();
+
+      var needle = $('#txtSearch').val();
+      if (needle.length == 0) {
+         return;
+      }
+
       traceState = traceStates.search;
+      $('div.title').each(function(i, item) {
+         var haystack = $(item).text();
+         if (haystack.contains(needle)) {
+            var title = findTraceTitle($(item));
+            searchResults.push(summaryLineTitleFormat(title.text()));
+         }
+      });
       $('div.content').each(function(i, item) {
          var haystack = $(item).text();
-         var needle = $('#txtSearch').val();
          if (haystack.contains(needle)) {
             var title = findTraceTitle($(item).prev());
             searchResults.push(summaryLineTitleFormat(title.text()));
          }
       });
+
       // Remove duplicates
       searchResults = [...Set(searchResults)];
+
       // Show search results
       showSearchResults();
    }
 
    function findTraceTitle(title) {
-      // Is in IR section
-      if (title.text().match(/^---- TRACE \d+ IR/)) {
+      // Is not 'start' title
+      if (title.text().match(/[^\d+ start]/)) {
          return title.prev().prev();
-      }
-      // Is in MCODE section
-      if (title.text().match(/^---- TRACE \d+ mcode/)) {
-         return title.prev().prev().prev().prev();
       }
       return title;
    }
