@@ -108,7 +108,19 @@ end
 local javascript = [[
 <script type="text/javascript" src="js/jquery.js"></script>
 <script type="text/javascript">
-   function toggle_trace(target, id) {
+
+   var traceStates = {
+      all: 0,
+      aborted: 1,
+      completed: 2,
+      search: 3,
+   };
+
+   var traceState = traceStates.all;
+
+   var searchResults = [];
+
+   function toggleTrace(target, id) {
       var node = $('#' + id);
       var result = node.toggle();
       var isHidden = node.is(":hidden");
@@ -126,13 +138,11 @@ local javascript = [[
       showAll();
    }
 
-   var traceStates = {
-      all: 0,
-      aborted: 1,
-      completed: 2
-   };
-
-   var traceState = traceStates.all;
+   function showAll() {
+      $('.summary-line').show();
+      var text = "[All: " + $('.summary-line').length + "]";
+      $('#traceState').contents().last().replaceWith(text);
+   }
 
    function switchTracesState(event) {
       event.preventDefault();
@@ -145,6 +155,13 @@ local javascript = [[
          break;
          case traceStates.completed:
             showCompleted();
+         break;
+         case traceStates.search:
+            if (searchResults.length != 0) {
+               showSearchResults();
+            } else {
+               switchTracesState(event);
+            }
       }
    }
 
@@ -158,24 +175,36 @@ local javascript = [[
       showAll();
    }
 
-   function showAll() {
-      $('.summary-line').css("display", "block");
-      var text = "[All: " + $('.summary-line').length + "]";
-      $('#traceState').contents().last().replaceWith(text);
-   }
-
    function showAborted() {
-      $('.summary-line').css("display", "none");
-      $('.summary-line.abort').css("display", "block");
+      $('.summary-line').hide();
+      $('.summary-line.abort').show();
       var text = "[Aborted: " + $('.summary-line.abort').length + "]";
       $('#traceState').contents().last().replaceWith(text);
    }
 
    function showCompleted() {
-      $('.summary-line').css("display", "none");
-      $('.summary-line.normal').css("display", "block");
+      $('.summary-line').hide();
+      $('.summary-line.normal').show();
       var text = "[Completed: " + $('.summary-line.normal').length + "]";
       $('#traceState').contents().last().replaceWith(text);
+   }
+
+   function showSearchResults() {
+      $('.summary-line').hide();
+      var text = "[Search: " + searchResults.length + "]";
+      $('#traceState').contents().last().replaceWith(text);
+      for (each of searchResults) {
+         showSummaryLine(each);
+      }
+   }
+
+   function showSummaryLine(trace_name) {
+      $('div.summary').find('span').each(function(i, item) {
+         var str = $(item).text();
+         if (str == trace_name) {
+            $(item).parent().show();
+         }
+      });
    }
 
    function expand_trace(target) {
@@ -197,15 +226,19 @@ local javascript = [[
 
    function doSearch(event) {
       if (event.keyCode != 13) return;
-      $('.summary-line').hide();
+      searchResults = [];
       $('div.content').each(function(i, item) {
          var haystack = $(item).text();
          var needle = $('#txtSearch').val();
          if (haystack.contains(needle)) {
             var title = findTraceTitle($(item).prev());
-            showSummaryLine(summaryLineTitleFormat(title.text()));
+            searchResults.push(summaryLineTitleFormat(title.text()));
          }
       });
+      // Remove duplicates
+      searchResults = [...Set(searchResults)];
+      // Show search results
+      showSearchResults();
    }
 
    function findTraceTitle(title) {
@@ -221,16 +254,16 @@ local javascript = [[
    }
 
    function summaryLineTitleFormat(text) {
-      return text.replace("---- TRACE ", "#").replace(" start", " -");
-   }
-
-   function showSummaryLine(trace_name) {
-      $('div.summary').find('span').each(function(i, item) {
-         var str = $(item).text();
-         if (str == trace_name) {
-            $(item).parent().show();
-         }
-      });
+      var matched, trace_id, filename;
+      matched = text.match(/^---- TRACE (\d+)/);
+      if (matched) {
+         trace_id = matched[1];
+      }
+      matched = filename = text.match(/([\.:0-9a-zA-Z]+)$/);
+      if (matched) {
+         filename = matched[1];
+      }
+      return "#" + trace_id +" - " + filename;
    }
 
    window.addEventListener('load', init);
@@ -273,7 +306,7 @@ while true do
    line, pos = content:match("([^\n]+)\n()", pos)
    if not line then break end
    if line:match('</pre>') then
-      table.insert(summary, ("<div id='summary-line-"..id.."' class='summary-line %s' onclick='toggle_trace(this, %d);'><span>#%d - %s</span></div>")
+      table.insert(summary, ("<div id='summary-line-"..id.."' class='summary-line %s' onclick='toggleTrace(this, %d);'><span>#%d - %s</span></div>")
          :format(style, id, trace_id, filename))
       table.insert(buffer, line)
       print_trace(buffer, id, style)
