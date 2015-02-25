@@ -123,12 +123,7 @@ local javascript = [[
       $('div.title').on('click', function() {
          $(this).next().toggle();
       });
-
-      // Generate 'lines' array for search
-
-      // Show all traces
-      var text = "[All: " + $('.summary-line').length + "]";
-      $('#traceState').contents().last().replaceWith(text);
+      showAll();
    }
 
    var traceStates = {
@@ -139,28 +134,48 @@ local javascript = [[
 
    var traceState = traceStates.all;
 
-   function switchTracesState(target) {
-      var num;
-      traceState = traceState + 1; 
-      traceState = traceState % (Object.keys(traceStates).length);
-      switch (traceState) {
+   function switchTracesState(event) {
+      event.preventDefault();
+      switch (nextTraceState()) {
          case traceStates.all:
-            $('.summary-line').css("display", "block");
-            var text = "[All: " + $('.summary-line').length + "]";
-            $(target).contents().last().replaceWith(text);
+            showAll();
          break;
          case traceStates.aborted:
-            $('.summary-line').css("display", "none");
-            $('.summary-line.abort').css("display", "block");
-            var text = "[Aborted: " + $('.summary-line.abort').length + "]";
-            $(target).contents().last().replaceWith(text);
+            showAborted();
          break;
          case traceStates.completed:
-            $('.summary-line').css("display", "none");
-            $('.summary-line.normal').css("display", "block");
-            var text = "[Completed: " + $('.summary-line.normal').length + "]";
-            $(target).contents().last().replaceWith(text);
+            showCompleted();
       }
+   }
+
+   function nextTraceState() {
+      traceState = (traceState + 1) % (Object.keys(traceStates).length);
+      return traceState;
+   }
+
+   function clearTextSearch() {
+      $('#txtSearch').val('')
+      showAll();
+   }
+
+   function showAll() {
+      $('.summary-line').css("display", "block");
+      var text = "[All: " + $('.summary-line').length + "]";
+      $('#traceState').contents().last().replaceWith(text);
+   }
+
+   function showAborted() {
+      $('.summary-line').css("display", "none");
+      $('.summary-line.abort').css("display", "block");
+      var text = "[Aborted: " + $('.summary-line.abort').length + "]";
+      $('#traceState').contents().last().replaceWith(text);
+   }
+
+   function showCompleted() {
+      $('.summary-line').css("display", "none");
+      $('.summary-line.normal').css("display", "block");
+      var text = "[Completed: " + $('.summary-line.normal').length + "]";
+      $('#traceState').contents().last().replaceWith(text);
    }
 
    function expand_trace(target) {
@@ -180,7 +195,8 @@ local javascript = [[
       $('#summary-line-' + id).removeClass("selected");
    }
 
-   function doSearch() {
+   function doSearch(event) {
+      if (event.keyCode != 13) return;
       $('.summary-line').hide();
       $('div.content').each(function(i, item) {
          var haystack = $(item).text();
@@ -301,14 +317,15 @@ end
 print_trace(buffer, style)
 
 print([=[
+
 <div class="searchbar">
    <form action="">
-      <input id="txtSearch" style="width: 95%; background: #ff9" display: inline" type="text" placeholder="Search"/>
-      <input style="display: inline" type="button" value="OK" onclick="doSearch();" />
+      <input id="txtSearch" style="width: 95%; background: #ff9" display: inline" type="text" placeholder="Type text to find and press return" onkeypress="doSearch(event);"/>
+      <input style="display: inline" type="button" value="Clear" onclick="clearTextSearch();" />
    </form>
 </div>
 <div style="font-size: 10px; font-face: Courier; margin-bottom: 4px">
-   <span><a id="traceState" href="#" onclick="switchTracesState(this);">[All]</a></span>
+   <span><a id="traceState" href="#" onclick="switchTracesState(event);">[All]</a></span>
 </div>
 ]=])
 print([[<div class="summary">]])
