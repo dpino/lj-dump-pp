@@ -1,5 +1,14 @@
 #!/usr/bin/env luajit
 
+--[[
+   lj-dump-pp is a prettifier of LuaJIT dump files in HTML format.
+
+   * Prints out a summary of traces and when clicking in one of them opens up a detailed view of the traces.
+   * Traces can be expanded / collapsed by sections.
+   * Searchbox allows to filter out traces by searched text.
+   * Toggle traces by state (all, aborted, completed, search result).
+--]]
+
 local function readfile(file)
    local f = io.open(file, "rt")
    local content = f:read("*all")
@@ -7,10 +16,16 @@ local function readfile(file)
    return content
 end
 
---[[
-if #arg == 0 then usage()
---]]
---
+local function usage()
+   io.stderr:write([[
+Usage: lj-dump-explorer <dump.html>
+
+   dump.html   LuaJIT dump in HTML format (-jdump=+H).
+]])
+   os.exit()
+end
+
+if #arg == 0 then usage() end
 
 local function wrap(tag, class, text)
    return ("<%s %s>%s</%s>"):format(tag, class, text, tag)
@@ -365,7 +380,7 @@ local javascript = [[
 </script>
 ]]
 
-local filename = "dump.html"
+local filename = arg[1]
 local content = readfile(filename)
 
 local line, pos = "", 0
