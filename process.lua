@@ -66,11 +66,11 @@ pre.ljdump {
 
 div.searchbar {
    position: fixed;
-   left: 10px;
-   top: 10px;
-   z-index: 100;
-   width: 95%;
-   margin-bottom: 10px;
+   top: 0px;
+   padding-top: 10px;
+   width: 98%;
+   background: #646d7e;
+   border-bottom: black solid 1px;
 }
 
 div.searchbar input {
@@ -78,7 +78,8 @@ div.searchbar input {
 }
 
 body {
-   margin-top: 40px;
+   margin: 60px 10px;
+   padding: 0px;
 }
 
 ]]
@@ -264,6 +265,7 @@ local javascript = [[
          filename = matched[1];
       }
       return "#" + trace_id +" - " + filename;
+      return result;
    }
 
    window.addEventListener('load', init);
@@ -274,12 +276,33 @@ local filename = "dump.html"
 local content = readfile(filename)
 
 local line, pos = "", 0
+
+local function print_search_bar()
+print([=[
+<div class="searchbar">
+   <form action="" style="padding: 0px 10px;">
+      <input id="txtSearch" style="width: 95%; background: #ff9"; display: inline" type="text" placeholder="Type text to find and press return" onkeypress="doSearch(event);"/>
+      <input style="display: inline" type="button" value="Clear" onclick="clearTextSearch();" />
+   </form>
+</div>
+]=])
+end
+
+print("<html>")
+print("<head><title></title></head>")
 while true do
    line, pos = content:match("([^\n]+)\n()", pos)
    if line:match("</style>") then
       print(styles)
       print(line) 
       print(javascript)
+      print("<body>")
+      print_search_bar()
+      print([[
+         <div style="font-size: 10px; font-face: Courier; margin-bottom: 4px">
+            <span><a id="traceState" href="#" onclick="switchTracesState(event);">[All]</a></span>
+         </div>
+      ]])
       break
    end
    print(line)
@@ -316,8 +339,10 @@ while true do
       style = "normal"
    elseif line:match('<pre class="ljdump">') then
       table.insert(buffer, '<pre id="'..id..'" style="%s" class="ljdump">')
-      table.insert(buffer, [[<span style='float: right; font-size: 10px; margin-top: -10px'>
-         <a href='#' onclick="expand_trace(this);">[Expand]</a> | <a href='#' onclick="close_trace(]]..id..[[);">[X]</a> </span>
+      table.insert(buffer, [[
+         <span style='float: right; font-size: 10px; margin-top: -10px'>
+            <a href='#' onclick="expand_trace(this);">[Expand]</a> | <a href='#' onclick="close_trace(]]..id..[[);">[X]</a>
+         </span>
       ]])
    elseif line:match("---- TRACE %d+ start %w+") then
       trace_id = line:match("---- TRACE (%d+)")
@@ -349,18 +374,6 @@ end
 
 print_trace(buffer, style)
 
-print([=[
-
-<div class="searchbar">
-   <form action="">
-      <input id="txtSearch" style="width: 95%; background: #ff9" display: inline" type="text" placeholder="Type text to find and press return" onkeypress="doSearch(event);"/>
-      <input style="display: inline" type="button" value="Clear" onclick="clearTextSearch();" />
-   </form>
-</div>
-<div style="font-size: 10px; font-face: Courier; margin-bottom: 4px">
-   <span><a id="traceState" href="#" onclick="switchTracesState(event);">[All]</a></span>
-</div>
-]=])
 print([[<div class="summary">]])
 for i, head in ipairs(summary) do
    print(head)
