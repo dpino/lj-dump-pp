@@ -121,45 +121,46 @@ local javascript = [[
 
    var searchResults = [];
 
-   function toggleAll(event) {
-      var text = $(event.target).text();
+   function toggleAll() {
+      var text = $('#openAll').text();
       if (text.match(/Open/)) {
          closeAll();
          openAll();
-         $(event.target).text('[Close all]');
+         $('#openAll').text('[Close all]');
       } else {
          closeAll();
-         $(event.target).text('[Open all]');
+         $('#openAll').text('[Open all]');
       }
    }
 
    function closeAll() {
-      $('div.summary-line').each(function(i, summary_title) {
-         var id = $(summary_title).attr('id');
+      $('div.summary-line').each(function(i, summaryTitle) {
+         var id = $(summaryTitle).attr('id');
          var matched = id.match(/(\d+)/)
          if (matched) {
-            closeTrace($(summary_title), $('#' + matched[1]));
+            closeTrace($(summaryTitle), $('#' + matched[1]));
          }
       });
+      $('#openAll').text('[Open all]');
    }
 
-   function closeTrace(summary_title, trace) {
-      summary_title.removeClass("selected");
+   function closeTrace(summaryTitle, trace) {
+      summaryTitle.removeClass("selected");
       trace.hide();
    }
 
    function openAll() {
-      getSummaryLinesByState().each(function(i, summary_title) {
-         var id = $(summary_title).attr('id');
+      getSummaryLinesByState().each(function(i, summaryTitle) {
+         var id = $(summaryTitle).attr('id');
          var matched = id.match(/(\d+)/)
          if (matched) {
-            openTrace($(summary_title), $('#' + matched[1]));
+            openTrace($(summaryTitle), $('#' + matched[1]));
          }
       });
    }
 
-   function openTrace(summary_title, trace) {
-      summary_title.addClass("selected");
+   function openTrace(summaryTitle, trace) {
+      summaryTitle.addClass("selected");
       trace.show();
    }
 
@@ -175,7 +176,7 @@ local javascript = [[
             return $('.summary-line.normal');
          break;
          case traceStates.search:
-            return getSearchResultsSummaryLines();
+            return $(getSearchResultsSummaryLines());
          break;
       }
    }
@@ -192,18 +193,18 @@ local javascript = [[
       return result;
    }
 
-   function toggleTrace(summary_title, trace_id) {
-      var trace = $('#' + trace_id);
+   function toggleTrace(summaryTitle, traceId) {
+      var trace = $('#' + traceId);
       trace.toggle();
       expandTrace(trace);
-      toggleSummaryTitleSelection(summary_title, trace.is(":hidden"));
+      toggleSummaryTitleSelection(summaryTitle, trace.is(":hidden"));
    }
 
-   function toggleSummaryTitleSelection(summary_title, unselect) {
+   function toggleSummaryTitleSelection(summaryTitle, unselect) {
       if (unselect) {
-         $(summary_title).removeClass("selected");
+         $(summaryTitle).removeClass("selected");
       } else {
-         $(summary_title).addClass("selected");
+         $(summaryTitle).addClass("selected");
       }
    }
 
@@ -233,6 +234,7 @@ local javascript = [[
 
    function switchTracesState(event) {
       event.preventDefault();
+      closeAll();
       nextTraceState();
       showTraces();
    }
@@ -265,6 +267,11 @@ local javascript = [[
 
    function clearTextSearch() {
       $('#txtSearch').val('')
+      resetState();
+   }
+
+   function resetState() {
+      closeAll();
       showAll();
    }
 
@@ -299,6 +306,8 @@ local javascript = [[
    function doSearch(event) {
       if (event.keyCode != 13) return;
       searchResults = [];
+      resetState();
+      traceState = traceStates.search;
       $('div.content').each(function(i, item) {
          var haystack = $(item).text();
          var needle = $('#txtSearch').val();
@@ -326,16 +335,16 @@ local javascript = [[
    }
 
    function summaryLineTitleFormat(text) {
-      var matched, trace_id, filename;
+      var matched, traceId, filename;
       matched = text.match(/^---- TRACE (\d+)/);
       if (matched) {
-         trace_id = matched[1];
+         traceId = matched[1];
       }
       matched = filename = text.match(/([\.:0-9a-zA-Z]+)$/);
       if (matched) {
          filename = matched[1];
       }
-      return "#" + trace_id +" - " + filename;
+      return "#" + traceId +" - " + filename;
       return result;
    }
 
@@ -372,7 +381,7 @@ while true do
       print([[
          <div style="font-size: 10px; font-face: Courier; margin-bottom: 4px">
             <span><a id="traceState" href="#" onclick="switchTracesState(event);">[All]</a></span>
-            <span><a id="traceState" href="#" onclick="toggleAll(event);">[Open all]</a></span>
+            <span><a id="openAll" href="#" onclick="toggleAll();">[Open all]</a></span>
          </div>
       ]])
       break
